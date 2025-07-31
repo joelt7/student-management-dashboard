@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Management Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background-color: #f8f9fa; }
+    .container { margin-top: 30px; }
+    .form-section, .chart-section { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+   
+    <h2 class="text-center mb-4">📚 Student Management Dashboard</h2>
+       </div>
+    <!-- Student Form -->
+    <div class="card form-section">
+      <div class="card-body">
+        <h5 class="card-title">Add / Edit Student</h5>
+        <form id="studentForm">
+          <input type="hidden" id="studentId">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <input type="text" id="name" class="form-control" placeholder="Full Name" required>
+            </div>
+            <div class="col-md-4">
+              <input type="number" id="age" class="form-control" placeholder="Age" required>
+            </div>
+            <div class="col-md-4">
+              <select id="gender" class="form-select" required>
+                <option value="" disabled selected>Select Gender</option>
+                <option>Male</option>
+                <option>Female</option>
+              </select>
+            </div>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Save Student</button>
+            <button type="reset" class="btn btn-secondary">Clear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Student Table -->
+    <div class="card mt-4">
+      <div class="card-body">
+        <h5 class="card-title">Student List</h5>
+        <table class="table table-bordered table-striped" id="studentTable">
+          <thead class="table-dark">
+            <tr>
+              <th>Name</th>
+              <th>Age</th>
+              <th>Gender</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="studentTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-section">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Gender Distribution</h5>
+          <canvas id="genderChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+  let students = [];
+  const form = document.getElementById("studentForm");
+  const tableBody = document.getElementById("studentTableBody");
+  const chartCanvas = document.getElementById("genderChart");
+  let genderChart;
+
+  // Check if localStorage has students
+  function loadStudents() {
+    const localData = localStorage.getItem("students");
+    if (localData) {
+      students = JSON.parse(localData);
+      renderTable();
+    } else {
+      fetchFromAPI();
+    }
+  }
+
+  
+  function fetchFromAPI() {
+    fetch('https://dummyjson.com/users?limit=20')
+      .then(response => response.json())
+      .then(response => {
+        students = [];
+
+        for (let i = 0; i < response.users.length; i++) {
+          let user = response.users[i];
+          let student = {
+            name: user.firstName + " " + user.lastName,
+            age: user.age,
+            gender: user.gender[0].toUpperCase() + user.gender.slice(1)
+          };
+          students.push(student);
+
+          
+          let container = document.createElement('div');
+          container.style.border = '1px solid #ccc';
+          container.style.padding = '10px';
+          container.style.margin = '10px';
+          container.style.width = '300px';
+          container.style.backgroundColor = '#f9f9f9';
+
+          let name = document.createElement('h3');
+          name.innerText = student.name;
+
+          let age = document.createElement('p');
+          age.innerText = 'Age: ' + student.age;
+
+          let gender = document.createElement('p');
+          gender.innerText = 'Gender: ' + student.gender;
+
+          container.appendChild(name);
+          container.appendChild(age);
+          container.appendChild(gender);
+
+          document.body.appendChild(container);
+        }
+
+        saveToLocalStorage();
+        renderTable();
+      })
+      .catch(err => {
+        console.error("Failed to fetch from API:", err);
+      });
+  }
+
+  function saveToLocalStorage() {
+    localStorage.setItem("students", JSON.stringify(students));
+  }
+
+  function renderTable() {
+    tableBody.innerHTML = "";
+    students.forEach((student, index) => {
+      const tr = document.createElement("tr");
+      
+      let name = document.createElement("td");
+      name.innerText = student.name;
+
+      let age = document.createElement("td");
+      age.innerText = student.age;
+
+      let gender = document.createElement("td");
+      gender.innerText = student.gender;
+
+      let actions = document.createElement("td");
+      
+      let editButton = document.createElement("button");
+      editButton.className = "btn btn-sm btn-warning";
+      editButton.innerText = "Edit";
+      editButton.onclick = function() { editStudent(index); };
+      
+      let deleteButton = document.createElement("button");
+      deleteButton.className = "btn btn-sm btn-danger";
+      deleteButton.innerText = "Delete";
+      deleteButton.onclick = function() { deleteStudent(index); };
+
+      actions.appendChild(editButton);
+      actions.appendChild(deleteButton);
+
+      tr.appendChild(name);
+      tr.appendChild(age);
+      tr.appendChild(gender);
+      tr.appendChild(actions);
+
+      tableBody.appendChild(tr);
+  });
+  updateChart();
+}
+
+  function editStudent(index) {
+    const student = students[index];
+    document.getElementById("studentId").value = index;
+    document.getElementById("name").value = student.name;
+    document.getElementById("age").value = student.age;
+    document.getElementById("gender").value = student.gender;
+  }
+
+  function deleteStudent(index) {
+    if (confirm("Are you sure you want to delete this student?")) {
+      students.splice(index, 1);
+      saveToLocalStorage();
+      renderTable();
+    }
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const id = document.getElementById("studentId").value;
+    const name = document.getElementById("name").value;
+    const age = parseInt(document.getElementById("age").value);
+    const gender = document.getElementById("gender").value;
+
+    if (id === "") {
+      students.push({ name, age, gender });
+    } else {
+      students[id] = { name, age, gender };
+    }
+
+    saveToLocalStorage();
+    renderTable();
+    form.reset();
+  });
+
+  function updateChart() {
+    const genderCount = { Male: 0, Female: 0 };
+    students.forEach(s => genderCount[s.gender]++);
+    const data = {
+      labels: ["Male", "Female"],
+      datasets: [{
+        label: "Gender Distribution",
+        data: [genderCount.Male, genderCount.Female],
+        backgroundColor: ["#0d6efd", "#d63384"]
+      }]
+    }; 
+    if (genderChart) genderChart.destroy();
+    genderChart = new Chart(chartCanvas, {
+      type: "pie",
+      data
+    });
+  }
+
+  // Load on start
+  loadStudents();
+</script>
+</body>
+</html>
